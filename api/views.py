@@ -36,6 +36,15 @@ def data_entry_message(request, custom_id, key, algoId):
 @parser_classes([MultiPartParser, FormParser])
 def data_entry_photo(request, custom_id, key):
     return handle_data_entry(request, custom_id, key, field_type='image')
+
+@csrf_exempt
+@api_view(['GET', 'POST'])
+@authentication_classes([])
+@permission_classes([])
+@parser_classes([MultiPartParser, FormParser])
+def data_entry_algofile(request, custom_id, key):
+    return handle_data_entry(request, custom_id, key, field_type='algofile')
+
 def isGmail(email):
     return bool(re.match(r"^[a-zA-Z0-9_.+-]+@(gmail|email|yahoo)\.com$", email))
 
@@ -94,6 +103,11 @@ def handle_data_entry(request, custom_id, key, field_type , algoId = ''):
             entry_data.save()
             return Response({'status': retMes+' photo', 'custom_id': user_entry.custom_id, 'key': entry_data.key})
             
+        elif field_type == 'algofile' and 'algofile' in request.data:
+            entry_data.algo_file = request.data['algofile']
+            entry_data.save()
+            return Response({'status': retMes+' algofile', 'custom_id': user_entry.custom_id, 'key': entry_data.key})
+            
         return Response({'status': 'no changes made', 'detail': f'expected field {field_type}'}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'GET':
@@ -119,5 +133,14 @@ def handle_data_entry(request, custom_id, key, field_type , algoId = ''):
                     pass
             else:
                  return Response({'error': 'No image found'}, status=status.HTTP_404_NOT_FOUND)
+
+        elif field_type == 'algofile':
+            if entry_data.algo_file:
+                try:
+                    data['algofile'] = request.build_absolute_uri(entry_data.algo_file.url)
+                except ValueError:
+                    pass
+            else:
+                 return Response({'error': 'No algo_file found'}, status=status.HTTP_404_NOT_FOUND)
                  
         return Response(data)
