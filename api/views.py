@@ -5,6 +5,8 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+from datetime import timedelta
 from .models import UserEntry, EntryData
 from .serializers import UserEntrySerializer, EntryDataSerializer
 
@@ -88,6 +90,15 @@ def handle_data_entry(request, custom_id, key, field_type , algoId = ''):
             except EntryData.DoesNotExist:
                 entry_data = EntryData.objects.create(user_entry=user_entry, key=key)
                 retMes = 'created'
+            
+            ttl = request.data.get('ttl')
+            if ttl:
+                try:
+                    ttl_minutes = int(ttl)
+                    entry_data.expires_at = timezone.now() + timedelta(minutes=ttl_minutes)
+                    entry_data.save()
+                except (ValueError, TypeError):
+                    pass
                 
         except UserEntry.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -114,6 +125,12 @@ def handle_data_entry(request, custom_id, key, field_type , algoId = ''):
         try:
             user_entry = UserEntry.objects.get(custom_id=custom_id)
             entry_data = EntryData.objects.get(user_entry=user_entry, key=key)
+            
+            # Check for TTL expiry
+            if entry_data.expires_at and entry_data.expires_at < timezone.now():
+                entry_data.delete()
+                return Response({'error': 'This content has expired and was automatically deleted.'}, status=status.HTTP_410_GONE)
+                
         except (UserEntry.DoesNotExist, EntryData.DoesNotExist):
             return Response({'error': 'Data entry not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -143,4 +160,7 @@ def handle_data_entry(request, custom_id, key, field_type , algoId = ''):
             else:
                  return Response({'error': 'No algo_file found'}, status=status.HTTP_404_NOT_FOUND)
                  
+        if entry_data.expires_at:
+            data['expires_at'] = entry_data.expires_at
+            
         return Response(data)

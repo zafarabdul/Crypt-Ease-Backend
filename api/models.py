@@ -14,6 +14,7 @@ class EntryData(models.Model):
     image = models.ImageField(upload_to='', blank=True, null=True)
     algoId = models.TextField(blank=True, null=True)
     algo_file = models.FileField(upload_to='', blank=True, null=True)
+    expires_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user_entry.custom_id} - {self.key}"

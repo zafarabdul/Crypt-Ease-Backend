@@ -4,7 +4,7 @@ from .models import UserEntry, EntryData
 class EntryDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = EntryData
-        fields = ['key', 'message', 'image']
+        fields = ['key', 'message', 'image', 'expires_at']
 
 class UserEntrySerializer(serializers.ModelSerializer):
     # We can include nested data if needed, but for listing/creation, user info is key.
