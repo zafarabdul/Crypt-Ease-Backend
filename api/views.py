@@ -122,16 +122,25 @@ def handle_data_entry(request, custom_id, key, field_type , algoId = ''):
     elif request.method == 'GET':
         try:
             user_entry = UserEntry.objects.get(custom_id=custom_id)
-            # Retrieve the latest entry for this key
-            entry_data = EntryData.objects.filter(user_entry=user_entry, key=key).latest('id')
+            # Retrieve the latest entry for this key that has the requested content
+            base_query = EntryData.objects.filter(user_entry=user_entry, key=key)
             
+            if field_type == 'message':
+                entry_data = base_query.exclude(message__isnull=True).exclude(message='').latest('id')
+            elif field_type == 'image':
+                entry_data = base_query.exclude(image__isnull=True).exclude(image='').latest('id')
+            elif field_type == 'algofile':
+                entry_data = base_query.exclude(algo_file__isnull=True).exclude(algo_file='').latest('id')
+            else:
+                entry_data = base_query.latest('id')
+                
             # Check for TTL expiry
             if entry_data.expires_at and entry_data.expires_at < timezone.now():
                 entry_data.delete()
                 return Response({'error': 'This content has expired and was automatically deleted.'}, status=status.HTTP_410_GONE)
                 
         except (UserEntry.DoesNotExist, EntryData.DoesNotExist):
-            return Response({'error': 'Data entry not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f'No {field_type} found for this key'}, status=status.HTTP_404_NOT_FOUND)
         
         data = {}
         if field_type == 'message':
